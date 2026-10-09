@@ -1,0 +1,128 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = "file:./dev.db"
+}
+
+// The learner profile: single local-first user
+model User {
+  id            String    @id @default(cuid())
+  email         String    @unique
+  name          String
+  xp            Int       @default(0)
+  level         Int       @default(1)
+  streak        Int       @default(0)
+  longestStreak Int       @default(0)
+  lastStudyDate DateTime?
+  hoursPerWeek  Int      @default(10)
+  subjects      Subject[]
+  plans         Plan[]
+  tasks         Task[]
+  sessions      Session[]
+  createdAt     DateTime  @default(now())
+}
+
+model Subject {
+  id         String      @id @default(cuid())
+  name       String
+  color      String      @default("#6366f1")
+  difficulty Int         @default(3) // 1..5
+  examDate   DateTime?
+  userId     String
+  user       User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tasks      Task[]
+  plans      Plan[]
+  flashcards Flashcard[]
+  decks      Deck[]
+  createdAt  DateTime    @default(now())
+}
+
+// One generated roadmap per subject
+model Plan {
+  id        String   @id @default(cuid())
+  title     String
+  summary   String
+  strategy  String // JSON blob: weekly focus split, review cadence, exam tactics
+  subjectId String
+  subject   Subject  @relation(fields: [subjectId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tasks     Task[]
+  createdAt DateTime @default(now())
+}
+
+model Task {
+  id          String    @id @default(cuid())
+  title       String
+  type        String // read | practice | review | project | mock_exam
+  priority    Int       @default(2) // 1 high, 2 med, 3 low
+  status      String    @default("todo") // todo | doing | done | skipped
+  estimateMin Int       @default(45)
+  dueDate     DateTime?
+  completedAt DateTime?
+  subjectId   String
+  subject     Subject   @relation(fields: [subjectId], references: [id], onDelete: Cascade)
+  planId      String?
+  plan        Plan?     @relation(fields: [planId], references: [id], onDelete: SetNull)
+  userId      String
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  sessions    Session[]
+  createdAt   DateTime  @default(now())
+}
+
+// Focus / Pomodoro study sessions
+model Session {
+  id         String   @id @default(cuid())
+  startedAt  DateTime @default(now())
+  minutes    Int
+  focusScore Int      @default(80) // 0..100 self-reported or inferred
+  notes      String?
+  taskId     String?
+  task       Task?    @relation(fields: [taskId], references: [id], onDelete: SetNull)
+  userId     String
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Deck {
+  id        String      @id @default(cuid())
+  name      String
+  subjectId String
+  subject   Subject     @relation(fields: [subjectId], references: [id], onDelete: Cascade)
+  cards     Flashcard[]
+  createdAt DateTime    @default(now())
+}
+
+model Flashcard {
+  id         String   @id @default(cuid())
+  front      String
+  back       String
+  box        Int      @default(1) // Leitner box 1..5
+  nextReview DateTime @default(now())
+  lastResult String? // hit | miss
+  streak     Int      @default(0)
+  deckId     String
+  deck       Deck     @relation(fields: [deckId], references: [id], onDelete: Cascade)
+  subjectId  String
+  subject    Subject  @relation(fields: [subjectId], references: [id], onDelete: Cascade)
+  createdAt  DateTime @default(now())
+}
+
+model Exam {
+  id        String   @id @default(cuid())
+  title     String
+  date      DateTime
+  subjectId String?
+  weight    Int      @default(1)
+  createdAt DateTime @default(now())
+}
+
+model AgentLog {
+  id        String   @id @default(cuid())
+  agent     String
+  action    String
+  detail    String
+  createdAt DateTime @default(now())
+}
